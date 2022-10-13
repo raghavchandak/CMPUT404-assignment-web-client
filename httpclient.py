@@ -41,13 +41,13 @@ class HTTPClient(object):
         return None
 
     def get_code(self, data):
-        return None
+        return data.split(" ")[1]
 
     def get_headers(self,data):
-        return None
+        return data.split("\r\n\r\n")[0]
 
     def get_body(self, data):
-        return None
+        return data.split("\r\n\r\n")[1]
     
     def sendall(self, data):
         self.socket.sendall(data.encode('utf-8'))
@@ -70,11 +70,70 @@ class HTTPClient(object):
     def GET(self, url, args=None):
         code = 500
         body = ""
+
+        urlParsed = urllib.parse.urlparse(url)
+        hostName = urlParsed.hostname
+        port = urlParsed.port
+        pathName = urlParsed.path
+
+        if (not hostName) or hostName == None:
+            hostName = '127.0.0.1'
+
+        if (not port) or port == None:
+            port = 80
+
+        if (not pathName) or pathName == None:
+            pathName = "/"
+
+        getRequest = f"GET {pathName} HTTP/1.1\r\nHost: {hostName}:{port}\r\nConnection: closed\r\n\r\n"
+
+        self.connect(hostName, port)
+        self.sendall(getRequest)
+
+        response = self.recvall(self.socket)
+        self.close()
+
+        code = int(self.get_code(response))
+        body = self.get_body(response)
+        headers = self.get_headers(response)
+
         return HTTPResponse(code, body)
 
     def POST(self, url, args=None):
         code = 500
         body = ""
+
+        urlParsed = urllib.parse.urlparse(url)
+        hostName = urlParsed.hostname
+        port = urlParsed.port
+        pathName = urlParsed.path
+
+        if (not hostName) or hostName == None:
+            hostName = '127.0.0.1'
+
+        if (not port) or port == None:
+            port = 80
+
+        if (not pathName) or pathName == None:
+            pathName = "/"
+
+        if args == None:
+            args = ""
+        else:
+            args = urllib.parse.urlencode(args)
+
+        postRequest = f"POST {pathName} HTTP/1.1\r\nHost: {hostName}:{port}\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: {len(args)}\r\nConnection: close\r\n\r\n{args}"
+
+        self.connect(hostName, port)
+        self.sendall(postRequest)
+
+        response = self.recvall(self.socket)
+        self.close()
+
+        code = int(self.get_code(response))
+        body = self.get_body(response)
+        headers = self.get_headers(response)
+
         return HTTPResponse(code, body)
 
     def command(self, url, command="GET", args=None):
